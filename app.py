@@ -1,182 +1,258 @@
-import os
+from __future__ import annotations
+
 from pathlib import Path
-import hashlib
+import base64
 
 import streamlit as st
 
-# -----------------------------
-# Config
-# -----------------------------
+
+# =============================
+# Page config
+# =============================
 st.set_page_config(
     page_title="LQR Road Map to SUCCESS",
     page_icon="🏠",
     layout="centered",
 )
 
-# -----------------------------
-# Branding (tweak if needed)
-# -----------------------------
-BRAND = {
-    "accent": "#036BDA",        # LQR blue (from logo)
-    "accent_strong": "#125DAD", # deeper blue
-    "bg_1": "#050814",
-    "bg_2": "#0B1226",
-    "text": "#F9FAFB",
-    "muted": "#9CA3AF",
-    "border": "rgba(31,41,55,.95)",
-}
 
+# =============================
+# Paths
+# =============================
 APP_ROOT = Path(__file__).parent
 ASSETS_DIR = APP_ROOT / "assets"
-VAULT_DIR = APP_ROOT / "vault"
-
 LOGO_PATH = ASSETS_DIR / "lqr_logo.png"
 
-# -----------------------------
+
+# =============================
+# Brand palette (LQR-style)
+# Primary blue is taken from your logo: rgb(0,107,221) => #006BDD
+# =============================
+BRAND = {
+    "primary": "#006BDD",     # LQR blue (logo-derived)
+    "primary_dark": "#0A4FA8",
+    "navy": "#0B1B2B",
+    "text": "#0F172A",
+    "muted": "#475569",
+    "bg": "#FFFFFF",
+    "surface": "#F6F8FC",
+    "border": "#E5E7EB",
+    "success": "#16A34A",
+    "warning": "#F59E0B",
+    "danger": "#EF4444",
+}
+
+
+def _b64_image(path: Path) -> str | None:
+    if not path.exists():
+        return None
+    return base64.b64encode(path.read_bytes()).decode("utf-8")
+
+
+LOGO_B64 = _b64_image(LOGO_PATH)
+
+
+# =============================
 # Global styling
-# -----------------------------
+# =============================
 st.markdown(
     f"""
 <style>
-    .stApp {{
-        background: radial-gradient(circle at top, {BRAND["bg_2"]} 0%, {BRAND["bg_1"]} 65%);
-        color: {BRAND["text"]};
-    }}
-    header[data-testid="stHeader"] {{ background: rgba(0,0,0,0); }}
-    [data-testid="stSidebar"] {{
-        background: rgba(2,6,23,.92);
-        border-right: 1px solid {BRAND["border"]};
-    }}
+  /* App background */
+  .stApp {{
+    background: {BRAND["bg"]};
+    color: {BRAND["text"]};
+  }}
 
-    .lqr-header {{
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:16px;
-        padding: 14px 14px 10px;
-        border: 1px solid rgba(15,23,42,.85);
-        background: linear-gradient(135deg, rgba(15,23,42,.96), rgba(15,23,42,.80));
-        border-radius: 18px;
-        box-shadow: 0 12px 26px rgba(15,23,42,.85);
-        margin-bottom: 14px;
-    }}
-    .lqr-left {{
-        display:flex;
-        align-items:center;
-        gap:12px;
-        min-width: 0;
-    }}
-    .lqr-title {{
-        margin:0;
-        font-size: 1.05rem;
-        letter-spacing: .03em;
-        text-transform: uppercase;
-        line-height: 1.2;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }}
-    .lqr-title span {{
-        color: {BRAND["accent"]};
-        font-weight: 800;
-    }}
-    .lqr-sub {{
-        margin: 2px 0 0;
-        color: {BRAND["muted"]};
-        font-size: .85rem;
-    }}
-    .pill {{
-        border-radius: 999px;
-        padding: .30rem .70rem;
-        border: 1px solid rgba(3,107,218,.35);
-        background: radial-gradient(circle at top left, rgba(3,107,218,.20), rgba(15,23,42,.95));
-        font-size: .72rem;
-        text-transform: uppercase;
-        letter-spacing: .09em;
-        display:inline-flex;
-        align-items:center;
-        gap:.4rem;
-        white-space: nowrap;
-        color: #e0f2fe;
-    }}
-    .dot {{
-        width: 7px;
-        height: 7px;
-        border-radius: 999px;
-        background: #4ade80;
-        box-shadow: 0 0 0 6px rgba(34,197,94,.24);
-        display:inline-block;
-    }}
+  /* Remove Streamlit header bar background */
+  header[data-testid="stHeader"] {{
+    background: rgba(0,0,0,0);
+  }}
 
-    .card {{
-        border: 1px solid rgba(15,23,42,.95);
-        background: radial-gradient(circle at top left, rgba(15,23,42,.35), rgba(2,6,23,.96));
-        border-radius: 18px;
-        padding: 14px 14px 12px;
-        box-shadow: 0 12px 30px rgba(15,23,42,.85);
-        transition: transform .12s ease-out, border-color .12s ease-out;
-    }}
-    .card:hover {{
-        transform: translateY(-2px);
-        border-color: rgba(3,107,218,.45);
-    }}
-    .muted {{
-        color: {BRAND["muted"]};
-        font-size: .9rem;
-        margin: 0;
-    }}
-    .badge {{
-        display:inline-block;
-        border-radius: 999px;
-        padding: .18rem .55rem;
-        font-size: .70rem;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        border: 1px solid rgba(75,85,99,.9);
-        color: {BRAND["muted"]};
-        white-space: nowrap;
-    }}
-    .badge.accent {{ border-color: rgba(3,107,218,.9); color: {BRAND["accent"]}; }}
-    .badge.success {{ border-color: rgba(74,222,128,.9); color: #86efac; }}
-    .badge.warning {{ border-color: rgba(245,158,11,.9); color: #fbbf24; }}
-    .badge.danger  {{ border-color: rgba(249,115,115,.9); color: #fca5a5; }}
+  /* Main container spacing */
+  section[data-testid="stMain"] .block-container {{
+    padding-top: 1.1rem;
+    padding-bottom: 5.0rem;  /* room for bottom nav */
+    max-width: 880px;
+  }}
 
-    .block {{
-        border: 1px solid rgba(15,23,42,.95);
-        background: linear-gradient(145deg, rgba(15,23,42,.92), rgba(15,23,42,.80));
-        border-radius: 18px;
-        padding: 14px 14px 10px;
-        box-shadow: 0 12px 26px rgba(15,23,42,.90);
-        margin-bottom: 12px;
-    }}
-    .callout {{
-        border-radius: 12px;
-        border: 1px dashed rgba(3,107,218,.65);
-        background: rgba(3,107,218,.10);
-        padding: 10px 12px;
-        color: #dbeafe;
-        font-size: .92rem;
-        margin-top: 8px;
-    }}
+  /* Sidebar */
+  [data-testid="stSidebar"] {{
+    background: {BRAND["surface"]};
+    border-right: 1px solid {BRAND["border"]};
+  }}
 
-    /* Buttons (Streamlit) */
-    div.stButton > button {{
-        border-radius: 999px !important;
-        border: 1px solid rgba(51,65,85,.9) !important;
-        background: rgba(15,23,42,.98) !important;
-        color: {BRAND["text"]} !important;
-    }}
-    div.stButton > button:hover {{
-        border-color: rgba(3,107,218,.85) !important;
-    }}
+  /* Header card */
+  .lqr-top {{
+    border: 1px solid {BRAND["border"]};
+    background: linear-gradient(180deg, #FFFFFF 0%, {BRAND["surface"]} 100%);
+    border-radius: 18px;
+    padding: 14px 16px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    margin-bottom: 14px;
+  }}
+  .lqr-top-row {{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 14px;
+  }}
+  .lqr-left {{
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    min-width: 0;
+  }}
+  .lqr-logo {{
+    width: 160px;
+    max-width: 38vw;
+    height: auto;
+    display:block;
+  }}
+  .lqr-titles {{
+    min-width: 0;
+  }}
+  .lqr-title {{
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.15;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: {BRAND["navy"]};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }}
+  .lqr-title span {{
+    color: {BRAND["primary"]};
+    font-weight: 800;
+  }}
+  .lqr-sub {{
+    margin: 4px 0 0;
+    color: {BRAND["muted"]};
+    font-size: .92rem;
+  }}
+
+  .pill {{
+    border-radius: 999px;
+    padding: .35rem .75rem;
+    border: 1px solid rgba(0,107,221,.25);
+    background: rgba(0,107,221,.08);
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    display:inline-flex;
+    align-items:center;
+    gap:.45rem;
+    color: {BRAND["navy"]};
+    white-space: nowrap;
+  }}
+  .dot {{
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: {BRAND["success"]};
+    box-shadow: 0 0 0 6px rgba(22,163,74,.16);
+    display:inline-block;
+  }}
+
+  /* Cards */
+  .card {{
+    border: 1px solid {BRAND["border"]};
+    background: #FFFFFF;
+    border-radius: 18px;
+    padding: 14px 14px 12px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }}
+  .card h3 {{
+    margin: 0 0 6px;
+    font-size: 1.02rem;
+    color: {BRAND["navy"]};
+  }}
+  .muted {{
+    color: {BRAND["muted"]};
+    font-size: .95rem;
+    margin: 0 0 10px;
+  }}
+
+  /* Blocks */
+  .block {{
+    border: 1px solid {BRAND["border"]};
+    background: #FFFFFF;
+    border-radius: 18px;
+    padding: 14px 14px 10px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    margin-bottom: 12px;
+  }}
+  .callout {{
+    border-radius: 14px;
+    border: 1px dashed rgba(0,107,221,.45);
+    background: rgba(0,107,221,.06);
+    padding: 10px 12px;
+    color: {BRAND["navy"]};
+    font-size: .95rem;
+    margin-top: 8px;
+  }}
+
+  /* Badges */
+  .badge {{
+    display:inline-block;
+    border-radius: 999px;
+    padding: .18rem .6rem;
+    font-size: .70rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    border: 1px solid {BRAND["border"]};
+    color: {BRAND["muted"]};
+    white-space: nowrap;
+  }}
+  .badge.accent  {{ border-color: rgba(0,107,221,.45); color: {BRAND["primary_dark"]}; background: rgba(0,107,221,.06); }}
+  .badge.success {{ border-color: rgba(22,163,74,.45); color: {BRAND["success"]}; background: rgba(22,163,74,.06); }}
+  .badge.warning {{ border-color: rgba(245,158,11,.45); color: {BRAND["warning"]}; background: rgba(245,158,11,.06); }}
+  .badge.danger  {{ border-color: rgba(239,68,68,.45); color: {BRAND["danger"]};  background: rgba(239,68,68,.06); }}
+
+  /* Streamlit buttons */
+  div.stButton > button {{
+    border-radius: 999px !important;
+    border: 1px solid rgba(0,107,221,.25) !important;
+    background: {BRAND["primary"]} !important;
+    color: white !important;
+    font-weight: 700 !important;
+  }}
+  div.stButton > button:hover {{
+    border-color: rgba(0,107,221,.55) !important;
+    background: {BRAND["primary_dark"]} !important;
+  }}
+  div.stButton > button:disabled {{
+    opacity: .55 !important;
+    background: #CBD5E1 !important;
+    border-color: #CBD5E1 !important;
+    color: #0F172A !important;
+  }}
+
+  /* Bottom nav "fixed" bar */
+  .bottom-nav {{
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,.92);
+    border-top: 1px solid {BRAND["border"]};
+    backdrop-filter: blur(10px);
+    padding: 10px 12px 12px;
+    z-index: 999;
+  }}
+  .bottom-nav-inner {{
+    max-width: 880px;
+    margin: 0 auto;
+  }}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-# -----------------------------
+
+# =============================
 # Navigation state
-# -----------------------------
+# =============================
 PAGES = {
     "home": "Buckets",
     "vault": "Vault",
@@ -196,81 +272,54 @@ PAGES = {
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+
 def go(page_key: str):
     st.session_state.page = page_key
     st.rerun()
 
-# -----------------------------
-# Key helpers (prevents StreamlitDuplicateElementId)
-# -----------------------------
-def k(*parts: str) -> str:
-    """
-    Create a stable unique key from string parts.
-    Avoids accidental duplicates when labels are reused.
-    """
-    raw = "|".join(parts)
-    h = hashlib.md5(raw.encode("utf-8")).hexdigest()[:10]
-    return f"{parts[0]}_{h}"
 
-def nav_button(label: str, target: str, key: str, disabled: bool = False):
-    return st.button(
-        label,
-        key=key,
-        use_container_width=True,
-        disabled=disabled,
-        on_click=go,
-        args=(target,),
+# =============================
+# UI helpers
+# =============================
+def header():
+    logo_html = ""
+    if LOGO_B64:
+        logo_html = f'<img class="lqr-logo" src="data:image/png;base64,{LOGO_B64}" />'
+
+    st.markdown(
+        f"""
+<div class="lqr-top">
+  <div class="lqr-top-row">
+    <div class="lqr-left">
+      {logo_html}
+      <div class="lqr-titles">
+        <h1 class="lqr-title">LQR <span>Road Map to SUCCESS</span></h1>
+        <div class="lqr-sub">Pick the bucket. Follow the steps. Win the claim.</div>
+      </div>
+    </div>
+    <div class="pill"><span class="dot"></span><span>Bucket Picker</span></div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
-# -----------------------------
-# UI helpers
-# -----------------------------
-def header():
-    col_left, col_right = st.columns([0.78, 0.22], vertical_alignment="center")
-
-    with col_left:
-        st.markdown('<div class="lqr-header"><div class="lqr-left">', unsafe_allow_html=True)
-        if LOGO_PATH.exists():
-            st.image(str(LOGO_PATH), width=120)
-        st.markdown(
-            """
-            <div style="min-width:0">
-              <h1 class="lqr-title">LQR <span>Road Map to SUCCESS</span></h1>
-              <p class="lqr-sub">Pick the bucket. Follow the steps. Win the claim.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.markdown("</div></div>", unsafe_allow_html=True)
-
-    with col_right:
-        st.markdown(
-            '<div class="pill"><span class="dot"></span><span>Bucket Picker</span></div>',
-            unsafe_allow_html=True,
-        )
-
-def bottom_nav(active_key: str):
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        nav_button("🧺 Buckets", "home", key=k("btn", "bottom", "home"), disabled=(active_key == "home"))
-    with c2:
-        nav_button("🔎 Vault", "vault", key=k("btn", "bottom", "vault"), disabled=(active_key == "vault"))
-    with c3:
-        nav_button("📚 Training", "training", key=k("btn", "bottom", "training"), disabled=(active_key == "training"))
 
 def badge(text: str, kind: str = "accent"):
     st.markdown(f'<span class="badge {kind}">{text}</span>', unsafe_allow_html=True)
 
-def block(title: str, body_md: str = "", callout_md: str | None = None):
+
+def block(title: str, body_md: str = "", callout_html: str | None = None):
     st.markdown('<div class="block">', unsafe_allow_html=True)
     st.markdown(f"### {title}")
     if body_md:
         st.markdown(body_md)
-    if callout_md:
-        st.markdown(f'<div class="callout">{callout_md}</div>', unsafe_allow_html=True)
+    if callout_html:
+        st.markdown(f'<div class="callout">{callout_html}</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-def docs_section(doc_items: list[tuple[str, str]], section_key: str):
+
+def docs_section(doc_items: list[tuple[str, str]]):
     """
     doc_items: [(label, relative_path_from_repo_root)]
     Example: ("Engineer Testing Repairability (PDF)", "vault/Claim Success/Engineer Testing Repairability.pdf")
@@ -289,72 +338,117 @@ def docs_section(doc_items: list[tuple[str, str]], section_key: str):
                 file_name=file_path.name,
                 mime="application/octet-stream",
                 use_container_width=True,
-                key=k("dl", section_key, str(i), rel_path),
+                key=f"dl_{rel_path}_{i}",
             )
         else:
             st.warning(f"Not found: {rel_path}")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# -----------------------------
-# Page content
-# -----------------------------
+
+def bottom_nav(active_key: str):
+    # fixed bar container
+    st.markdown('<div class="bottom-nav"><div class="bottom-nav-inner">', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.button(
+            "🧺 Buckets",
+            use_container_width=True,
+            disabled=(active_key == "home"),
+            on_click=go,
+            args=("home",),
+            key=f"nav_home_{active_key}",
+        )
+    with c2:
+        st.button(
+            "🔎 Vault",
+            use_container_width=True,
+            disabled=(active_key == "vault"),
+            on_click=go,
+            args=("vault",),
+            key=f"nav_vault_{active_key}",
+        )
+    with c3:
+        st.button(
+            "📚 Training",
+            use_container_width=True,
+            disabled=(active_key == "training"),
+            on_click=go,
+            args=("training",),
+            key=f"nav_training_{active_key}",
+        )
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+
+def nav_sidebar(current_page: str):
+    with st.sidebar:
+        st.markdown("## Navigation")
+        # Keep a stable key, then route on change
+        selection = st.radio(
+            "Go to",
+            options=list(PAGES.keys()),
+            format_func=lambda k: PAGES[k],
+            index=list(PAGES.keys()).index(current_page) if current_page in PAGES else 0,
+            key="sidebar_nav",
+        )
+        if selection != current_page:
+            go(selection)
+
+        st.markdown("---")
+        st.caption("Tip: Keep your vault file/folder names EXACT (case-sensitive).")
+
+
+# =============================
+# Render
+# =============================
 header()
 
 page = st.session_state.page
+nav_sidebar(page)
 
-# Sidebar navigation
-with st.sidebar:
-    st.markdown("## Navigation")
-    st.radio(
-        "Go to",
-        options=list(PAGES.keys()),
-        format_func=lambda key_: PAGES[key_],
-        index=list(PAGES.keys()).index(page) if page in PAGES else 0,
-        key="sidebar_nav",
-        on_change=lambda: go(st.session_state.sidebar_nav),
-    )
-    st.markdown("---")
-    st.caption("Tip: Keep your vault file/folder names EXACT (case-sensitive).")
 
-# HOME
+# =============================
+# Pages
+# =============================
 if page == "home":
     st.markdown("## Choose the claim bucket")
     badge("5 Buckets", "accent")
-    st.write("")
     st.caption("Start here. If you need docs or visuals, use the bottom navigation (Vault / Training).")
 
     c1, c2 = st.columns(2)
+
     with c1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown("### 🟥 Denied")
-        st.markdown('<p class="muted">Carrier said no. Force a second look (or end it fast).</p>', unsafe_allow_html=True)
-        nav_button("Open ➜", "bucket_denied", key=k("btn", "home", "open", "denied"))
+        st.markdown('<div class="muted">Carrier said no. Force a second look (or end it fast).</div>', unsafe_allow_html=True)
+        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_denied",), key="open_denied")
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="card" style="margin-top:12px;">', unsafe_allow_html=True)
         st.markdown("### 🟨 Shingle Repairs")
-        st.markdown('<p class="muted">Spot repairs approved. Prove repairability & CAR, then expand.</p>', unsafe_allow_html=True)
-        nav_button("Open ➜", "bucket_shingles", key=k("btn", "home", "open", "shingles"))
+        st.markdown('<div class="muted">Spot repairs approved. Prove repairability & CAR, then expand.</div>', unsafe_allow_html=True)
+        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_shingles",), key="open_shingles")
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="card" style="margin-top:12px;">', unsafe_allow_html=True)
         st.markdown("### 🟩 Full Roof Approval")
-        st.markdown('<p class="muted">Claim won. Validate scope, prevent surprises, set expectations.</p>', unsafe_allow_html=True)
-        nav_button("Open ➜", "bucket_full", key=k("btn", "home", "open", "full"))
+        st.markdown('<div class="muted">Claim won. Validate scope, prevent surprises, set expectations.</div>', unsafe_allow_html=True)
+        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_full",), key="open_full")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown("### 🟧 Components Only")
-        st.markdown('<p class="muted">They paid parts (vents/flashings/valley) but not shingles.</p>', unsafe_allow_html=True)
-        nav_button("Open ➜", "bucket_components", key=k("btn", "home", "open", "components"))
+        st.markdown('<div class="muted">They paid parts (vents/flashings/valley) but not shingles.</div>', unsafe_allow_html=True)
+        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_components",), key="open_components")
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="card" style="margin-top:12px;">', unsafe_allow_html=True)
         st.markdown("### 🟦 Slope Approval")
-        st.markdown('<p class="muted">Some slopes paid, others denied. Win with connections & continuity.</p>', unsafe_allow_html=True)
-        nav_button("Open ➜", "bucket_slopes", key=k("btn", "home", "open", "slopes"))
+        st.markdown('<div class="muted">Some slopes paid, others denied. Win with connections & continuity.</div>', unsafe_allow_html=True)
+        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_slopes",), key="open_slopes")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(
@@ -363,46 +457,41 @@ if page == "home":
     )
     bottom_nav("home")
 
-# VAULT
 elif page == "vault":
     st.markdown("## Vault")
     badge("Vault", "accent")
     block(
         "What this is",
         "This page is a holder for documents and reference material.",
-        "Next step: we can auto-list whatever is inside your `vault/` folder and make it searchable.",
+        "Next step: auto-list whatever is inside your <code>vault/</code> folder and make it searchable.",
     )
     bottom_nav("vault")
 
-# TRAINING
 elif page == "training":
     st.markdown("## Training")
     badge("Training", "accent")
     block(
         "What this is",
         "This page is a holder for training modules and playbooks.",
-        "Next step: we can turn each bucket into a short “module” with checklists + examples.",
+        "Next step: turn each bucket into a short module with checklists + examples.",
     )
     bottom_nav("training")
 
-# BUCKET 1 — DENIED
 elif page == "bucket_denied":
     st.markdown("## Denied Claim")
     badge("Denied", "danger")
-    nav_button("← Back to Buckets", "home", key=k("btn", "back", "denied_to_home"))
+    st.button("← Back to Buckets", on_click=go, args=("home",), key="back_denied")
 
     block(
         "You’re in this bucket if…",
         "- The carrier denied the roof\n- No roof scope was approved\n- Collateral may or may not have been paid",
         "<strong>Mindset:</strong> Denial ≠ dead claim. This is evidence + homeowner-driven.",
     )
-
     block(
         "Your goal",
         "**Get the carrier to take a second look** — or determine early the claim is not viable.\n\n"
         "**Success exit:**\n- ✔ Reinspection scheduled OR desk/supervisor review confirmed → move to the new bucket the carrier creates."
     )
-
     block(
         "Step-by-step road map",
         "**Step 1: Identify why it was denied**\n- Cause denial\n- Date of loss denial\n- Mixed denial\n\n"
@@ -418,19 +507,18 @@ elif page == "bucket_denied":
         ("DMI Initial Response (DOCX)", "vault/Claim Success/DMI Initial Response.docx"),
         ("DMI Follow-Up Response (DOCX)", "vault/Claim Success/DMI Follow UP Response.docx"),
         ("IRC Outline (Reference) (PDF)", "vault/Claim Success/IRC Outline.pdf"),
-    ], section_key="bucket_denied")
+    ])
 
     bottom_nav("home")
 
-# BUCKET 2 — COMPONENTS ONLY
 elif page == "bucket_components":
     st.markdown("## Bucket 2 — Components Only")
     badge("Components Only", "warning")
-    nav_button("← Back to Buckets", "home", key=k("btn", "back", "components_to_home"))
+    st.button("← Back to Buckets", on_click=go, args=("home",), key="back_components")
 
     st.markdown(
         '<div class="callout"><strong>Core Rule:</strong> If a component is approved, shingles are always impacted.</div>',
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
     block(
@@ -443,11 +531,11 @@ elif page == "bucket_components":
     st.markdown("### Component Groups (Tap to open)")
     c1, c2, c3 = st.columns(3)
     with c1:
-        nav_button("🌀 Vents ➜", "comp_vents", key=k("btn", "components", "open", "vents"))
+        st.button("🌀 Vents ➜", use_container_width=True, on_click=go, args=("comp_vents",), key="open_comp_vents")
     with c2:
-        nav_button("🧱 Flashings ➜", "comp_flashings", key=k("btn", "components", "open", "flashings"))
+        st.button("🧱 Flashings ➜", use_container_width=True, on_click=go, args=("comp_flashings",), key="open_comp_flashings")
     with c3:
-        nav_button("💧 Valleys ➜", "comp_valleys", key=k("btn", "components", "open", "valleys"))
+        st.button("💧 Valleys ➜", use_container_width=True, on_click=go, args=("comp_valleys",), key="open_comp_valleys")
 
     block(
         "The question that drives every components claim",
@@ -464,11 +552,10 @@ elif page == "bucket_components":
 
     bottom_nav("home")
 
-# BUCKET 3 — SHINGLES
 elif page == "bucket_shingles":
     st.markdown("## Shingle Repairs")
     badge("Shingles", "accent")
-    nav_button("← Back to Buckets", "home", key=k("btn", "back", "shingles_to_home"))
+    st.button("← Back to Buckets", on_click=go, args=("home",), key="back_shingles")
 
     block(
         "You’re in this bucket if…",
@@ -496,15 +583,14 @@ elif page == "bucket_shingles":
         ("Definitions of Reasonable and Uniform (DOCX)", "vault/Claim Success/Definitions of Reasonable and Uniform.docx"),
         ("Uniform Appearance and Compatibility (DOCX)", "vault/Claim Success/Uniform Appearance and Compability.docx"),
         ("Repair Area Concept (PDF)", "vault/Claim Success/Repair Area Concept.pdf"),
-    ], section_key="bucket_shingles")
+    ])
 
     bottom_nav("home")
 
-# BUCKET 4 — SLOPES
 elif page == "bucket_slopes":
     st.markdown("## Slope Approval")
     badge("Slopes", "accent")
-    nav_button("← Back to Buckets", "home", key=k("btn", "back", "slopes_to_home"))
+    st.button("← Back to Buckets", on_click=go, args=("home",), key="back_slopes")
 
     block(
         "You’re in this bucket if…",
@@ -533,15 +619,14 @@ elif page == "bucket_slopes":
         ("OC Berkshire Discontinued (PDF)", "vault/Claim Success/OC Berkshire Disco.pdf"),
         ("Owens Corning Oakridge Compatibility Letter (PDF)", "vault/Claim Success/owens_corning_oakridge_compatibility_letter.pdf"),
         ("GAF Timberline Do Not Mix (PDF)", "vault/Claim Success/GAF Timberline Do not mix.185217.pdf"),
-    ], section_key="bucket_slopes")
+    ])
 
     bottom_nav("home")
 
-# BUCKET 5 — FULL
 elif page == "bucket_full":
     st.markdown("## Full Roof Approval")
     badge("Full", "success")
-    nav_button("← Back to Buckets", "home", key=k("btn", "back", "full_to_home"))
+    st.button("← Back to Buckets", on_click=go, args=("home",), key="back_full")
 
     block(
         "You’re in this bucket if…",
@@ -565,15 +650,14 @@ elif page == "bucket_full":
 
     docs_section([
         ("Do Not Mix AR & Non-AR (PDF)", "vault/Claim Success/Do Not Mix AR & Non-AR.pdf"),
-    ], section_key="bucket_full")
+    ])
 
     bottom_nav("home")
 
-# COMPONENTS — VENTS
 elif page == "comp_vents":
     st.markdown("## Components Playbook — Vents")
     badge("Vents", "warning")
-    nav_button("← Back to Components", "bucket_components", key=k("btn", "back", "vents_to_components"))
+    st.button("← Back to Components", on_click=go, args=("bucket_components",), key="back_comp_vents")
 
     block("Scenario", "Carrier approved box vents and/or pipe jacks only. No slope or full replacement approved.")
     block(
@@ -592,11 +676,10 @@ elif page == "comp_vents":
     )
     bottom_nav("home")
 
-# COMPONENTS — FLASHINGS
 elif page == "comp_flashings":
     st.markdown("## Components Playbook — Flashings")
     badge("Flashings", "warning")
-    nav_button("← Back to Components", "bucket_components", key=k("btn", "back", "flashings_to_components"))
+    st.button("← Back to Components", on_click=go, args=("bucket_components",), key="back_comp_flashings")
 
     block("Scenario", "Carrier approved flashing replacement only (step flashing and/or chimney flashing). No slope or full replacement approved.")
     block(
@@ -611,11 +694,10 @@ elif page == "comp_flashings":
     )
     bottom_nav("home")
 
-# COMPONENTS — VALLEYS
 elif page == "comp_valleys":
     st.markdown("## Components Playbook — Valleys")
     badge("Valleys", "warning")
-    nav_button("← Back to Components", "bucket_components", key=k("btn", "back", "valleys_to_components"))
+    st.button("← Back to Components", on_click=go, args=("bucket_components",), key="back_comp_valleys")
 
     block("Scenario", "Carrier approved valley work only. No slope or full replacement approved.")
     block(
