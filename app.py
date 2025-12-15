@@ -76,10 +76,42 @@ st.markdown(
     max-width: 880px;
   }}
 
-  /* Sidebar */
+  /* Sidebar base */
   [data-testid="stSidebar"] {{
     background: {BRAND["surface"]};
     border-right: 1px solid {BRAND["border"]};
+  }}
+
+  /* ==========================
+     Sidebar visibility fix
+     (prevents white-on-white when Streamlit is in dark theme)
+     ========================== */
+  [data-testid="stSidebar"],
+  [data-testid="stSidebar"] * {{
+    color: {BRAND["navy"]} !important; /* navy text */
+  }}
+
+  [data-testid="stSidebar"] {{
+    background: {BRAND["surface"]} !important;
+    border-right: 1px solid {BRAND["border"]} !important;
+  }}
+
+  [data-testid="stSidebar"] a {{
+    color: {BRAND["primary"]} !important;
+  }}
+
+  /* Radio / labels often need explicit color */
+  [data-testid="stSidebar"] label,
+  [data-testid="stSidebar"] p,
+  [data-testid="stSidebar"] span,
+  [data-testid="stSidebar"] div {{
+    color: {BRAND["navy"]} !important;
+  }}
+
+  /* Make sidebar caption/muted text readable but softer */
+  [data-testid="stSidebar"] .stCaption,
+  [data-testid="stSidebar"] .stMarkdown small {{
+    color: {BRAND["muted"]} !important;
   }}
 
   /* Header card */
@@ -104,8 +136,8 @@ st.markdown(
     min-width: 0;
   }}
   .lqr-logo {{
-    width: 160px;
-    max-width: 38vw;
+    width: 200px;
+    max-width: 42vw;
     height: auto;
     display:block;
   }}
@@ -249,33 +281,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-/* --- Sidebar visibility fix --- */
-[data-testid="stSidebar"],
-[data-testid="stSidebar"] * {
-  color: #0B1B2B !important; /* navy text */
-}
-
-[data-testid="stSidebar"] {
-  background: #F6F8FC !important; /* light gray surface */
-  border-right: 1px solid #E5E7EB !important;
-}
-
-/* Radio / labels often need explicit color */
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span,
-[data-testid="stSidebar"] div {
-  color: #0B1B2B !important;
-}
-
-/* Make sidebar caption/muted text readable but softer */
-[data-testid="stSidebar"] .stCaption,
-[data-testid="stSidebar"] .stMarkdown small {
-  color: #475569 !important;
-}
-
-
-
 
 # =============================
 # Navigation state
@@ -347,10 +352,6 @@ def block(title: str, body_md: str = "", callout_html: str | None = None):
 
 
 def docs_section(doc_items: list[tuple[str, str]]):
-    """
-    doc_items: [(label, relative_path_from_repo_root)]
-    Example: ("Engineer Testing Repairability (PDF)", "vault/Claim Success/Engineer Testing Repairability.pdf")
-    """
     st.markdown('<div class="block">', unsafe_allow_html=True)
     st.markdown("### Recommended Docs")
     st.caption("If a file isn’t present in the repo under /vault, you’ll see “Not found.”")
@@ -374,7 +375,6 @@ def docs_section(doc_items: list[tuple[str, str]]):
 
 
 def bottom_nav(active_key: str):
-    # fixed bar container
     st.markdown('<div class="bottom-nav"><div class="bottom-nav-inner">', unsafe_allow_html=True)
     c1, c2, c3 = st.columns(3)
 
@@ -412,7 +412,6 @@ def bottom_nav(active_key: str):
 def nav_sidebar(current_page: str):
     with st.sidebar:
         st.markdown("## Navigation")
-        # Keep a stable key, then route on change
         selection = st.radio(
             "Go to",
             options=list(PAGES.keys()),
