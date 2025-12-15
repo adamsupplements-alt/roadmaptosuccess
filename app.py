@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import hashlib
 
 import streamlit as st
 
@@ -119,11 +120,6 @@ st.markdown(
         transform: translateY(-2px);
         border-color: rgba(3,107,218,.45);
     }}
-    .card-title {{
-        font-size: .98rem;
-        font-weight: 800;
-        margin: 0 0 6px;
-    }}
     .muted {{
         color: {BRAND["muted"]};
         font-size: .9rem;
@@ -162,13 +158,6 @@ st.markdown(
         font-size: .92rem;
         margin-top: 8px;
     }}
-    .backlink {{
-        color: {BRAND["muted"]};
-        font-size: .9rem;
-        text-decoration: none;
-        cursor: pointer;
-    }}
-    .backlink:hover {{ color: {BRAND["accent"]}; }}
 
     /* Buttons (Streamlit) */
     div.stButton > button {{
@@ -212,7 +201,29 @@ def go(page_key: str):
     st.rerun()
 
 # -----------------------------
-# Helpers
+# Key helpers (prevents StreamlitDuplicateElementId)
+# -----------------------------
+def k(*parts: str) -> str:
+    """
+    Create a stable unique key from string parts.
+    Avoids accidental duplicates when labels are reused.
+    """
+    raw = "|".join(parts)
+    h = hashlib.md5(raw.encode("utf-8")).hexdigest()[:10]
+    return f"{parts[0]}_{h}"
+
+def nav_button(label: str, target: str, key: str, disabled: bool = False):
+    return st.button(
+        label,
+        key=key,
+        use_container_width=True,
+        disabled=disabled,
+        on_click=go,
+        args=(target,),
+    )
+
+# -----------------------------
+# UI helpers
 # -----------------------------
 def header():
     col_left, col_right = st.columns([0.78, 0.22], vertical_alignment="center")
@@ -230,8 +241,7 @@ def header():
             """,
             unsafe_allow_html=True,
         )
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div></div>", unsafe_allow_html=True)
 
     with col_right:
         st.markdown(
@@ -242,11 +252,11 @@ def header():
 def bottom_nav(active_key: str):
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.button("🧺 Buckets", use_container_width=True, disabled=(active_key == "home"), on_click=go, args=("home",))
+        nav_button("🧺 Buckets", "home", key=k("btn", "bottom", "home"), disabled=(active_key == "home"))
     with c2:
-        st.button("🔎 Vault", use_container_width=True, disabled=(active_key == "vault"), on_click=go, args=("vault",))
+        nav_button("🔎 Vault", "vault", key=k("btn", "bottom", "vault"), disabled=(active_key == "vault"))
     with c3:
-        st.button("📚 Training", use_container_width=True, disabled=(active_key == "training"), on_click=go, args=("training",))
+        nav_button("📚 Training", "training", key=k("btn", "bottom", "training"), disabled=(active_key == "training"))
 
 def badge(text: str, kind: str = "accent"):
     st.markdown(f'<span class="badge {kind}">{text}</span>', unsafe_allow_html=True)
@@ -260,7 +270,7 @@ def block(title: str, body_md: str = "", callout_md: str | None = None):
         st.markdown(f'<div class="callout">{callout_md}</div>', unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-def docs_section(doc_items: list[tuple[str, str]]):
+def docs_section(doc_items: list[tuple[str, str]], section_key: str):
     """
     doc_items: [(label, relative_path_from_repo_root)]
     Example: ("Engineer Testing Repairability (PDF)", "vault/Claim Success/Engineer Testing Repairability.pdf")
@@ -268,7 +278,8 @@ def docs_section(doc_items: list[tuple[str, str]]):
     st.markdown('<div class="block">', unsafe_allow_html=True)
     st.markdown("### Recommended Docs")
     st.caption("If a file isn’t present in the repo under /vault, you’ll see “Not found.”")
-    for label, rel_path in doc_items:
+
+    for i, (label, rel_path) in enumerate(doc_items):
         file_path = APP_ROOT / rel_path
         if file_path.exists() and file_path.is_file():
             data = file_path.read_bytes()
@@ -278,9 +289,11 @@ def docs_section(doc_items: list[tuple[str, str]]):
                 file_name=file_path.name,
                 mime="application/octet-stream",
                 use_container_width=True,
+                key=k("dl", section_key, str(i), rel_path),
             )
         else:
             st.warning(f"Not found: {rel_path}")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
@@ -290,13 +303,13 @@ header()
 
 page = st.session_state.page
 
-# Top quick nav (optional)
+# Sidebar navigation
 with st.sidebar:
     st.markdown("## Navigation")
     st.radio(
         "Go to",
         options=list(PAGES.keys()),
-        format_func=lambda k: PAGES[k],
+        format_func=lambda key_: PAGES[key_],
         index=list(PAGES.keys()).index(page) if page in PAGES else 0,
         key="sidebar_nav",
         on_change=lambda: go(st.session_state.sidebar_nav),
@@ -316,35 +329,38 @@ if page == "home":
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown("### 🟥 Denied")
         st.markdown('<p class="muted">Carrier said no. Force a second look (or end it fast).</p>', unsafe_allow_html=True)
-        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_denied",))
+        nav_button("Open ➜", "bucket_denied", key=k("btn", "home", "open", "denied"))
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="card" style="margin-top:12px;">', unsafe_allow_html=True)
         st.markdown("### 🟨 Shingle Repairs")
         st.markdown('<p class="muted">Spot repairs approved. Prove repairability & CAR, then expand.</p>', unsafe_allow_html=True)
-        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_shingles",))
+        nav_button("Open ➜", "bucket_shingles", key=k("btn", "home", "open", "shingles"))
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="card" style="margin-top:12px;">', unsafe_allow_html=True)
         st.markdown("### 🟩 Full Roof Approval")
         st.markdown('<p class="muted">Claim won. Validate scope, prevent surprises, set expectations.</p>', unsafe_allow_html=True)
-        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_full",))
+        nav_button("Open ➜", "bucket_full", key=k("btn", "home", "open", "full"))
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown("### 🟧 Components Only")
         st.markdown('<p class="muted">They paid parts (vents/flashings/valley) but not shingles.</p>', unsafe_allow_html=True)
-        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_components",))
+        nav_button("Open ➜", "bucket_components", key=k("btn", "home", "open", "components"))
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown('<div class="card" style="margin-top:12px;">', unsafe_allow_html=True)
         st.markdown("### 🟦 Slope Approval")
         st.markdown('<p class="muted">Some slopes paid, others denied. Win with connections & continuity.</p>', unsafe_allow_html=True)
-        st.button("Open ➜", use_container_width=True, on_click=go, args=("bucket_slopes",))
+        nav_button("Open ➜", "bucket_slopes", key=k("btn", "home", "open", "slopes"))
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="callout"><strong>Rule:</strong> Identify the bucket first. Then follow the steps in order. No free-styling.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="callout"><strong>Rule:</strong> Identify the bucket first. Then follow the steps in order. No free-styling.</div>',
+        unsafe_allow_html=True,
+    )
     bottom_nav("home")
 
 # VAULT
@@ -373,9 +389,7 @@ elif page == "training":
 elif page == "bucket_denied":
     st.markdown("## Denied Claim")
     badge("Denied", "danger")
-    st.markdown('<a class="backlink" onclick="return false;">←</a>', unsafe_allow_html=True)
-    if st.button("← Back to Buckets"):
-        go("home")
+    nav_button("← Back to Buckets", "home", key=k("btn", "back", "denied_to_home"))
 
     block(
         "You’re in this bucket if…",
@@ -404,7 +418,7 @@ elif page == "bucket_denied":
         ("DMI Initial Response (DOCX)", "vault/Claim Success/DMI Initial Response.docx"),
         ("DMI Follow-Up Response (DOCX)", "vault/Claim Success/DMI Follow UP Response.docx"),
         ("IRC Outline (Reference) (PDF)", "vault/Claim Success/IRC Outline.pdf"),
-    ])
+    ], section_key="bucket_denied")
 
     bottom_nav("home")
 
@@ -412,10 +426,12 @@ elif page == "bucket_denied":
 elif page == "bucket_components":
     st.markdown("## Bucket 2 — Components Only")
     badge("Components Only", "warning")
-    if st.button("← Back to Buckets"):
-        go("home")
+    nav_button("← Back to Buckets", "home", key=k("btn", "back", "components_to_home"))
 
-    st.markdown('<div class="callout"><strong>Core Rule:</strong> If a component is approved, shingles are always impacted.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="callout"><strong>Core Rule:</strong> If a component is approved, shingles are always impacted.</div>',
+        unsafe_allow_html=True
+    )
 
     block(
         "You’re in this bucket if…",
@@ -427,11 +443,11 @@ elif page == "bucket_components":
     st.markdown("### Component Groups (Tap to open)")
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.button("🌀 Vents ➜", use_container_width=True, on_click=go, args=("comp_vents",))
+        nav_button("🌀 Vents ➜", "comp_vents", key=k("btn", "components", "open", "vents"))
     with c2:
-        st.button("🧱 Flashings ➜", use_container_width=True, on_click=go, args=("comp_flashings",))
+        nav_button("🧱 Flashings ➜", "comp_flashings", key=k("btn", "components", "open", "flashings"))
     with c3:
-        st.button("💧 Valleys ➜", use_container_width=True, on_click=go, args=("comp_valleys",))
+        nav_button("💧 Valleys ➜", "comp_valleys", key=k("btn", "components", "open", "valleys"))
 
     block(
         "The question that drives every components claim",
@@ -452,8 +468,7 @@ elif page == "bucket_components":
 elif page == "bucket_shingles":
     st.markdown("## Shingle Repairs")
     badge("Shingles", "accent")
-    if st.button("← Back to Buckets"):
-        go("home")
+    nav_button("← Back to Buckets", "home", key=k("btn", "back", "shingles_to_home"))
 
     block(
         "You’re in this bucket if…",
@@ -481,7 +496,7 @@ elif page == "bucket_shingles":
         ("Definitions of Reasonable and Uniform (DOCX)", "vault/Claim Success/Definitions of Reasonable and Uniform.docx"),
         ("Uniform Appearance and Compatibility (DOCX)", "vault/Claim Success/Uniform Appearance and Compability.docx"),
         ("Repair Area Concept (PDF)", "vault/Claim Success/Repair Area Concept.pdf"),
-    ])
+    ], section_key="bucket_shingles")
 
     bottom_nav("home")
 
@@ -489,8 +504,7 @@ elif page == "bucket_shingles":
 elif page == "bucket_slopes":
     st.markdown("## Slope Approval")
     badge("Slopes", "accent")
-    if st.button("← Back to Buckets"):
-        go("home")
+    nav_button("← Back to Buckets", "home", key=k("btn", "back", "slopes_to_home"))
 
     block(
         "You’re in this bucket if…",
@@ -519,7 +533,7 @@ elif page == "bucket_slopes":
         ("OC Berkshire Discontinued (PDF)", "vault/Claim Success/OC Berkshire Disco.pdf"),
         ("Owens Corning Oakridge Compatibility Letter (PDF)", "vault/Claim Success/owens_corning_oakridge_compatibility_letter.pdf"),
         ("GAF Timberline Do Not Mix (PDF)", "vault/Claim Success/GAF Timberline Do not mix.185217.pdf"),
-    ])
+    ], section_key="bucket_slopes")
 
     bottom_nav("home")
 
@@ -527,8 +541,7 @@ elif page == "bucket_slopes":
 elif page == "bucket_full":
     st.markdown("## Full Roof Approval")
     badge("Full", "success")
-    if st.button("← Back to Buckets"):
-        go("home")
+    nav_button("← Back to Buckets", "home", key=k("btn", "back", "full_to_home"))
 
     block(
         "You’re in this bucket if…",
@@ -552,7 +565,7 @@ elif page == "bucket_full":
 
     docs_section([
         ("Do Not Mix AR & Non-AR (PDF)", "vault/Claim Success/Do Not Mix AR & Non-AR.pdf"),
-    ])
+    ], section_key="bucket_full")
 
     bottom_nav("home")
 
@@ -560,8 +573,7 @@ elif page == "bucket_full":
 elif page == "comp_vents":
     st.markdown("## Components Playbook — Vents")
     badge("Vents", "warning")
-    if st.button("← Back to Components"):
-        go("bucket_components")
+    nav_button("← Back to Components", "bucket_components", key=k("btn", "back", "vents_to_components"))
 
     block("Scenario", "Carrier approved box vents and/or pipe jacks only. No slope or full replacement approved.")
     block(
@@ -584,8 +596,7 @@ elif page == "comp_vents":
 elif page == "comp_flashings":
     st.markdown("## Components Playbook — Flashings")
     badge("Flashings", "warning")
-    if st.button("← Back to Components"):
-        go("bucket_components")
+    nav_button("← Back to Components", "bucket_components", key=k("btn", "back", "flashings_to_components"))
 
     block("Scenario", "Carrier approved flashing replacement only (step flashing and/or chimney flashing). No slope or full replacement approved.")
     block(
@@ -604,8 +615,7 @@ elif page == "comp_flashings":
 elif page == "comp_valleys":
     st.markdown("## Components Playbook — Valleys")
     badge("Valleys", "warning")
-    if st.button("← Back to Components"):
-        go("bucket_components")
+    nav_button("← Back to Components", "bucket_components", key=k("btn", "back", "valleys_to_components"))
 
     block("Scenario", "Carrier approved valley work only. No slope or full replacement approved.")
     block(
