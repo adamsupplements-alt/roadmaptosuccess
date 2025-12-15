@@ -249,6 +249,33 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+/* --- Sidebar visibility fix --- */
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] * {
+  color: #0B1B2B !important; /* navy text */
+}
+
+[data-testid="stSidebar"] {
+  background: #F6F8FC !important; /* light gray surface */
+  border-right: 1px solid #E5E7EB !important;
+}
+
+/* Radio / labels often need explicit color */
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] div {
+  color: #0B1B2B !important;
+}
+
+/* Make sidebar caption/muted text readable but softer */
+[data-testid="stSidebar"] .stCaption,
+[data-testid="stSidebar"] .stMarkdown small {
+  color: #475569 !important;
+}
+
+
+
 
 # =============================
 # Navigation state
